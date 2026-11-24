@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI or Not?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+  /* Stanford identity colors */
+  :root {
+    --cardinal: #8C1515;
+    --cardinal-light: #B83A4B;
+    --cardinal-dark: #820000;
+    --black: #2E2D29;
+    --cool-grey: #53565A;
+    --white: #FFFFFF;
+    --fog: #F4F4F4;
+    --stone-light: #DAD7CB;
+    --palo-alto: #175E54;
+    --palo-alto-tint: #E5EFED;
+    --poppy-dark: #8D5A0C;
+    --poppy-tint: #FBF1E1;
+    --cardinal-tint: #F6E8E8;
+    --grey-tint: #EFEFEE;
+
+    --card-w: 104px;
+    --card-h: 96px;
+    --radius: 10px;
+  }
+  @media (max-width: 640px) {
+    :root { --card-w: 82px; --card-h: 84px; }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--white);
+    color: var(--black);
+    font-family: "Source Sans 3", "Source Sans Pro", "Helvetica Neue", Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 1040px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  /* Header */
+  .brandbar { height: 6px; background: var(--cardinal); border-radius: 3px; margin-bottom: 18px; }
+  .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--cardinal); margin: 0 0 4px; }
+  h1 { font-family: "Source Serif 4", Georgia, serif; font-weight: 700; font-size: clamp(28px, 4.5vw, 40px); line-height: 1.1; margin: 0 0 8px; }
+  h2 { font-family: "Source Serif 4", Georgia, serif; font-weight: 700; font-size: 24px; line-height: 1.2; margin: 0 0 6px; color: var(--black); }
+  h3 { font-size: 18px; margin: 0 0 6px; }
+  .lede { color: var(--cool-grey); margin: 0 0 20px; max-width: 70ch; }
+
+  /* Stepper */
+  .stepper { display: flex; gap: 6px; margin: 0 0 22px; padding: 0; list-style: none; flex-wrap: wrap; }
+  .stepper button {
+    font: inherit; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--fog); color: var(--cool-grey);
+    border: 0; border-radius: 999px; padding: 6px 14px 6px 6px; cursor: pointer;
+  }
+  .stepper button .n {
+    display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--white); color: var(--cool-grey); font-size: 14px;
+  }
+  .stepper button[aria-current="step"] { background: var(--cardinal); color: var(--white); }
+  .stepper button[aria-current="step"] .n { color: var(--cardinal); }
+  .stepper button:disabled { opacity: .5; cursor: not-allowed; }
+  .stepper button:focus-visible, .btn:focus-visible, .card:focus-visible, .seg button:focus-visible, textarea:focus-visible {
+    outline: 3px solid #4298B5; outline-offset: 2px;
+  }
+
+  .panel-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  .panel-head p { margin: 0; color: var(--cool-grey); max-width: 66ch; }
+  .tip { font-size: 15px; color: var(--cool-grey); margin: 8px 0 0; }
+  .kbd { font-size: 13px; border: 1px solid var(--stone-light); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--white); }
+
+  /* Board */
+  .board {
+    position: relative; height: 440px; border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--stone-light);
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    transition: height .35s ease;
+    user-select: none; -webkit-user-select: none;
+  }
+  @media (max-width: 640px) { .board { height: 520px; } }
+  .zone { position: relative; padding: 12px 10px; text-align: center; }
+  .zone.not { background: var(--grey-tint); }
+  .zone.maybe { background: var(--poppy-tint); }
+  .zone.ai { background: var(--cardinal-tint); }
+  .zone-label { font-weight: 700; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; line-height: 1.2; }
+  .zone.not .zone-label { color: var(--cool-grey); }
+  .zone.maybe .zone-label { color: var(--poppy-dark); }
+  .zone.ai .zone-label { color: var(--cardinal); }
+  .axis {
+    position: absolute; left: 16px; right: 16px; top: 52px; height: 3px; background: var(--black); border-radius: 2px; pointer-events: none;
+  }
+  .axis::before, .axis::after { content: ""; position: absolute; top: -5px; width: 13px; height: 13px; border-radius: 50%; background: var(--black); }
+  .axis::before { left: -6px; } .axis::after { right: -6px; }
+  .board.drop-hover { box-shadow: 0 0 0 3px var(--cardinal-light) inset; }
+  .board-layer { position: absolute; inset: 0; }
+
+  /* Tray */
+  .tray-wrap { margin-top: 16px; }
+  .tray-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .tray-head strong { font-size: 15px; }
+  .count { font-size: 15px; color: var(--cool-grey); }
+  .tray {
+    display: flex; flex-wrap: wrap; gap: 10px; min-height: calc(var(--card-h) + 24px);
+    padding: 12px; border: 2px dashed var(--stone-light); border-radius: 14px; background: var(--white);
+  }
+  .tray:empty::after { content: "All cards are on the continuum. Nice work!"; color: var(--palo-alto); font-weight: 600; align-self: center; }
+
+  /* Cards */
+  .card {
+    width: var(--card-w); height: var(--card-h);
+    background: var(--white); border: 1px solid var(--stone-light); border-radius: var(--radius);
+    box-shadow: 0 1px 2px rgba(46,45,41,.12), 0 2px 6px rgba(46,45,41,.06);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    padding: 6px; text-align: center; cursor: grab; touch-action: none;
+    font-size: 12.5px; font-weight: 600; line-height: 1.15; color: var(--black);
+    position: relative;
+  }
+  @media (max-width: 640px) { .card { font-size: 11px; } }
+  .card .ico { font-size: 30px; line-height: 1; }
+  @media (max-width: 640px) { .card .ico { font-size: 24px; } }
+  .board .card { position: absolute; }
+  .board.animate .card { transition: left .55s cubic-bezier(.2,.8,.2,1), top .55s cubic-bezier(.2,.8,.2,1); }
+  .card.dragging { cursor: grabbing; position: fixed; z-index: 1000; box-shadow: 0 10px 24px rgba(46,45,41,.25); transform: rotate(-2deg); }
+  .card.selected { border-color: var(--cardinal); box-shadow: 0 0 0 2px var(--cardinal); }
+  .locked .card { cursor: default; }
+  .card .badge {
+    position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 13px; font-weight: 700; color: var(--white);
+    box-shadow: 0 0 0 2px var(--white);
+  }
+  .badge.match { background: var(--palo-alto); }
+  .badge.diff { background: var(--poppy-dark); }
+  .card.has-note::before {
+    content: ""; position: absolute; top: 6px; left: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--cardinal);
+  }
+
+  /* Buttons */
+  .actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+  .btn {
+    font: inherit; font-weight: 700; font-size: 16px; border-radius: 8px; padding: 10px 20px; cursor: pointer;
+    border: 2px solid var(--cardinal); background: var(--cardinal); color: var(--white);
+  }
+  .btn:hover { background: var(--cardinal-dark); border-color: var(--cardinal-dark); }
+  .btn.secondary { background: var(--white); color: var(--cardinal); }
+  .btn.secondary:hover { background: var(--cardinal-tint); }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--cool-grey); font-weight: 600; padding-left: 4px; padding-right: 4px; text-decoration: underline; }
+  .btn:disabled { background: var(--stone-light); border-color: var(--stone-light); color: var(--cool-grey); cursor: not-allowed; }
+  .hint { font-size: 15px; color: var(--cool-grey); }
+
+  /* Step 2 */
+  .def-box { background: var(--fog); border-left: 5px solid var(--cardinal); border-radius: 10px; padding: 18px 20px; margin-bottom: 22px; }
+  .def-box label { font-weight: 700; display: block; margin-bottom: 4px; }
+  .def-box .sub { color: var(--cool-grey); font-size: 15px; margin: 0 0 10px; }
+  textarea {
+    width: 100%; font: inherit; font-size: 16px; color: var(--black);
+    border: 1px solid #C4C4C4; border-radius: 8px; padding: 10px 12px; resize: vertical; min-height: 80px; background: var(--white);
+  }
+  .group { margin-bottom: 22px; }
+  .group-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 10px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .dot.not { background: var(--cool-grey); } .dot.maybe { background: var(--poppy-dark); } .dot.ai { background: var(--cardinal); }
+  .note-row { display: grid; grid-template-columns: 44px 1fr; gap: 12px; align-items: start; padding: 12px 0; border-top: 1px solid #E4E4E3; }
+  .note-row .ico { font-size: 30px; line-height: 1; text-align: center; padding-top: 2px; }
+  .note-row label { font-weight: 700; display: block; margin-bottom: 6px; }
+  .note-row textarea { min-height: 56px; }
+  .guide { background: var(--white); border: 1px solid #E4E4E3; border-radius: 10px; padding: 12px 18px; margin: 0 0 22px; }
+  .guide p { margin: 0 0 4px; color: var(--cardinal); font-weight: 700; }
+  .guide ul { margin: 0; padding-left: 20px; }
+
+  /* Step 3 */
+  .seg { display: inline-flex; background: var(--fog); border-radius: 999px; padding: 4px; }
+  .seg button { font: inherit; font-size: 15px; font-weight: 600; border: 0; background: transparent; color: var(--cool-grey); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--white); color: var(--cardinal); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .score { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; background: var(--palo-alto-tint); border-radius: 12px; padding: 14px 18px; margin: 0 0 16px; }
+  .score .big { font-family: "Source Serif 4", Georgia, serif; font-size: 34px; font-weight: 700; color: var(--palo-alto); line-height: 1; }
+  .score p { margin: 0; max-width: 62ch; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 15px; color: var(--cool-grey); margin: 10px 0 0; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .badge { position: static; width: 18px; height: 18px; font-size: 11px; box-shadow: none; display: inline-grid; place-items: center; color: #fff; border-radius: 50%; }
+
+  .big-idea { background: var(--cardinal); color: var(--white); border-radius: 14px; padding: 20px 24px; margin: 26px 0; }
+  .big-idea h2 { color: var(--white); }
+  .big-idea p { margin: 0 0 8px; }
+  .big-idea ul { margin: 0; padding-left: 20px; }
+  .big-idea li { margin-bottom: 4px; }
+
+  .exp { border: 1px solid #E4E4E3; border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+  .exp summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 12px 16px; }
+  .exp summary::-webkit-details-marker { display: none; }
+  .exp summary .ico { font-size: 28px; line-height: 1; text-align: center; }
+  .exp summary .name { font-weight: 700; }
+  .exp summary .you { font-size: 14px; color: var(--cool-grey); display: block; font-weight: 400; }
+  .exp summary::after { content: "+"; font-size: 22px; font-weight: 700; color: var(--cardinal); grid-column: 3; }
+  .exp[open] summary::after { content: "\2212"; }
+  .exp .tag { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .tag.match { background: var(--palo-alto-tint); color: var(--palo-alto); }
+  .tag.diff { background: var(--poppy-tint); color: var(--poppy-dark); }
+  .exp .body { padding: 0 16px 16px 68px; }
+  @media (max-width: 640px) { .exp .body { padding-left: 16px; } }
+  .exp .body p { margin: 0 0 10px; }
+  .exp .mine { background: var(--fog); border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+  .exp .mine b { color: var(--cool-grey); font-weight: 600; }
+  .summary-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .revisit { background: var(--fog); border-radius: 12px; padding: 18px 20px; }
+  .revisit blockquote { margin: 8px 0 14px; padding: 10px 14px; border-left: 4px solid var(--stone-light); background: var(--white); border-radius: 0 8px 8px 0; color: var(--black); }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="app" id="app">
+  <div class="brandbar" aria-hidden="true"></div>
+  <p class="eyebrow">AI Literacy &middot; Activity</p>
+  <h1>AI or Not?</h1>
+  <p class="lede">Everyday technologies are all around us, but which ones actually use artificial intelligence? Sort each card on the continuum, explain your thinking, then compare your choices with the answer key.</p>
+
+  <nav aria-label="Activity steps">
+    <ol class="stepper" id="stepper">
+      <li><button type="button" data-step="1"><span class="n">1</span>Sort</button></li>
+      <li><button type="button" data-step="2"><span class="n">2</span>Explain</button></li>
+      <li><button type="button" data-step="3"><span class="n">3</span>Compare</button></li>
+    </ol>
+  </nav>
+
+  <!-- STEP 1 + shared board -->
+  <section id="boardSection" aria-labelledby="boardTitle">
+    <div class="panel-head" id="head1">
+      <div>
+        <h2 id="boardTitle">Step 1: Sort the cards</h2>
+        <p>Drag each card onto the continuum. Place it closer to <strong>Definitely AI</strong> or <strong>Definitely Not AI</strong> depending on how sure you are. As you sort, think about what criteria you&rsquo;re using.</p>
+        <p class="tip">Keyboard: focus a card, then press <span class="kbd">1</span> Not AI, <span class="kbd">2</span> Maybe, <span class="kbd">3</span> AI. Use <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> to fine-tune and <span class="kbd">Delete</span> to return it to the deck.</p>
+      </div>
+    </div>
+    <div class="panel-head" id="head3" hidden>
+      <div>
+        <h2>Step 3: Compare with the answer key</h2>
+        <p>Switch between your sort and the answer key to see the cards move. Open any card below for the explanation.</p>
+      </div>
+      <div class="seg" role="group" aria-label="Board view">
+        <button type="button" id="viewMine" aria-pressed="true">My sort</button>
+        <button type="button" id="viewKey" aria-pressed="false">Answer key</button>
+      </div>
+    </div>
+
+    <div class="board" id="board" aria-label="Continuum from Definitely Not AI to Definitely AI">
+      <div class="zone not"><div class="zone-label">Definitely<br>Not AI</div></div>
+      <div class="zone maybe"><div class="zone-label">Maybe</div></div>
+      <div class="zone ai"><div class="zone-label">Definitely<br>AI</div></div>
+      <div class="axis" aria-hidden="true"></div>
+      <div class="board-layer" id="boardLayer"></div>
+    </div>
+
+    <div class="tray-wrap" id="trayWrap">
+      <div class="tray-head"><strong>Card deck</strong><span class="count" id="count"></span></div>
+      <div class="tray" id="tray" aria-label="Cards not yet placed"></div>
+    </div>
+
+    <div class="actions" id="actions1">
+      <button type="button" class="btn ghost" id="resetBtn">Start over</button>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <span class="hint" id="hint1"></span>
+        <button type="button" class="btn" id="toStep2" disabled>Next: Explain your thinking</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section id="step2" hidden aria-labelledby="s2Title">
+    <div class="panel-head">
+      <div>
+        <h2 id="s2Title">Step 2: Explain your thinking</h2>
+        <p>Write your reasoning before you look at the answers. Your notes stay on this page and will appear next to the explanations in Step 3.</p>
+      </div>
+    </div>
+
+    <div class="def-box">
+      <label for="defInput">In your own words: what makes something AI?</label>
+      <p class="sub">Describe the criteria you used to sort the cards.</p>
+      <textarea id="defInput" rows="3" placeholder="Something counts as AI when&hellip;"></textarea>
+    </div>
+
+    <div class="guide">
+      <p>Add notes for the cards you went back and forth on, especially ones in the middle.</p>
+      <ul>
+        <li>Why did you place this card here?</li>
+        <li>Does it follow fixed rules, or does it learn from data and make predictions?</li>
+        <li>What would move it toward the other end?</li>
+      </ul>
+    </div>
+
+    <div id="notes"></div>
+
+    <div class="actions">
+      <button type="button" class="btn secondary" id="back1">Back to sorting</button>
+      <button type="button" class="btn" id="toStep3">Reveal the answers</button>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section id="step3" hidden aria-labelledby="s3Title">
+    <h2 class="sr-only" id="s3Title">Results</h2>
+    <div class="score" id="score"></div>
+    <div class="legend">
+      <span><span class="badge match">&#10003;</span>Same zone as the answer key</span>
+      <span><span class="badge diff">&ne;</span>Different zone, worth a second look</span>
+    </div>
+
+    <div class="big-idea">
+      <h2>The big idea</h2>
+      <p>A useful test: does the technology <strong>follow fixed, pre-programmed rules</strong>, or does it <strong>learn patterns from data to make predictions or decisions</strong>?</p>
+      <ul>
+        <li><strong>Not AI:</strong> sensors, timers, and lookups that do the same thing every time.</li>
+        <li><strong>AI:</strong> systems trained on large amounts of data that recognize, recommend, predict, or generate.</li>
+        <li><strong>Maybe:</strong> many products come in basic and &ldquo;smart&rdquo; versions. Whether they count as AI depends on the model and features.</li>
+      </ul>
+    </div>
+
+    <h2>Answers and explanations</h2>
+    <p class="hint" style="margin:0 0 14px">Cards that landed in a different zone are open first.</p>
+    <div id="explanations"></div>
+
+    <div class="revisit" id="revisit">
+      <h3>Revisit your definition</h3>
+      <div id="revisitBody"></div>
+      <label for="defRevised" style="font-weight:700;display:block;margin-bottom:6px">After seeing the answers, how would you revise your definition of AI?</label>
+      <textarea id="defRevised" rows="3" placeholder="Now I think something counts as AI when&hellip;"></textarea>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn secondary" id="back2">Back to my notes</button>
+      <button type="button" class="btn" id="restart">Try the activity again</button>
+    </div>
+  </section>
+
+  <div class="sr-only" aria-live="polite" id="live"></div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------
+     CONTENT: edit cards, answers, and explanations here.
+     key: "not" | "maybe" | "ai"
+  ------------------------------------------------------------------ */
+  var ITEMS = [
+    { id: "toilet",   ico: "🚽", label: "Automatic Toilet Flusher", key: "not",
+      exp: "An infrared sensor notices when you step away and triggers the flush. It follows one fixed rule every time. It doesn’t learn from data or make predictions." },
+    { id: "barcode",  ico: "🏷️", label: "Barcode Scanner", key: "not",
+      exp: "The scanner reads a printed pattern of lines and looks up an exact match in a database. It doesn’t interpret, learn, or guess, so a smudged code simply fails." },
+    { id: "pedometer",ico: "👟", label: "Pedometer", key: "not",
+      exp: "A motion sensor counts a step each time movement crosses a set threshold. That’s simple counting. (Some smartwatches add AI to recognize activities like swimming or cycling, but a basic pedometer doesn’t.)" },
+    { id: "camera",   ico: "📷", label: "Digital Camera", key: "not",
+      exp: "A digital camera captures light and stores it as pixels. Phone cameras are a different story: many use AI for scene detection, face focus, and night mode." },
+    { id: "walkie",   ico: "📻", label: "Walkie-Talkie", key: "not",
+      exp: "It sends and receives radio signals on a set frequency. There’s no data analysis, pattern recognition, or decision-making involved." },
+
+    { id: "drone",    ico: "🚁", label: "Drone with Controller", key: "maybe",
+      exp: "When a person flies it with a controller, the drone just follows commands. Many newer drones add AI for obstacle avoidance, ‘follow me’ tracking, or autonomous flight, so it depends on the model." },
+    { id: "photoshop",ico: "🖌️", label: "Photoshop", key: "maybe",
+      exp: "Classic tools like crop, brush, and layers do exactly what you tell them. Newer features such as Generative Fill and one-click subject selection rely on AI models trained on millions of images." },
+    { id: "vr",       ico: "🥽", label: "Virtual Reality", key: "maybe",
+      exp: "A VR headset displays a 3D world and tracks your movement with sensors. Some systems use AI for hand tracking, realistic avatars, or AI-generated characters and environments." },
+    { id: "washer",   ico: "🧺", label: "Washing Machine", key: "maybe",
+      exp: "Basic machines run a fixed, timed cycle. ‘Smart’ models use sensors, and sometimes AI, to detect load size or fabric type and adjust water, detergent, and time." },
+    { id: "elevator", ico: "🛗", label: "Elevator", key: "maybe",
+      exp: "Most elevators follow programmed rules, like going to the nearest call. Some large buildings use AI-based dispatch systems that learn traffic patterns to cut wait times." },
+
+    { id: "filters",  ico: "🐶", label: "Face Filters", key: "ai",
+      exp: "Computer vision models trained on many faces find your eyes, nose, and mouth in real time and track them as you move, so the filter stays in place." },
+    { id: "facial",   ico: "🧑", label: "Facial Recognition", key: "ai",
+      exp: "A model trained on large sets of face images turns a face into a numerical pattern and predicts whether it matches a known face. It can make mistakes and can be biased by its training data." },
+    { id: "siri",     ico: "🎙️", label: "Apple’s Siri (Voice Assistant)", key: "ai",
+      exp: "Speech recognition turns your voice into text, natural language processing interprets what you want, and the assistant generates a spoken response." },
+    { id: "gps",      ico: "🗺️", label: "GPS Navigation", key: "ai",
+      exp: "Finding your location uses satellite math, which isn’t AI. But navigation apps predict traffic and arrival times by learning patterns from huge amounts of data from other drivers, and they reroute you as conditions change." },
+    { id: "instagram",ico: "📱", label: "Instagram Feed", key: "ai",
+      exp: "A recommendation algorithm learns from what you like, watch, and skip, then predicts which posts and ads will keep you scrolling." },
+    { id: "vacuum",   ico: "🤖", label: "Robotic Vacuum", key: "ai",
+      exp: "Sensors and AI map your rooms, recognize obstacles like cords or socks, and plan efficient cleaning routes that improve over time." },
+    { id: "spotify",  ico: "🎧", label: "Spotify Song Recommendations", key: "ai",
+      exp: "Spotify learns from your listening history, and from millions of other listeners, to predict songs you’ll probably like (think Discover Weekly)." },
+    { id: "kiosk",    ico: "🛒", label: "Self-Checkout Kiosk", key: "ai",
+      exp: "The barcode scanner part isn’t AI. Many kiosks now add computer vision cameras that identify items like produce and flag possible scanning mistakes. Compare this with the barcode scanner card." }
+  ];
+
+  var ZONES = { not: "Definitely Not AI", maybe: "Maybe", ai: "Definitely AI" };
+  var ZONE_ORDER = ["not", "maybe", "ai"];
+  var STORE_KEY = "ail-ai-or-not-v1";
+
+  /* ---------------- state ---------------- */
+  var state = load() || fresh();
+  function fresh() { return { pos: {}, why: {}, def: "", defRevised: "", step: 1, maxStep: 1, view: "mine" }; }
+  function load() { try { var s = JSON.parse(localStorage.getItem(STORE_KEY)); return s && s.pos ? s : null; } catch (e) { return null; } }
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+
+  var byId = {}; ITEMS.forEach(function (it) { byId[it.id] = it; });
+
+  /* ---------------- elements ---------------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var board = $("board"), layer = $("boardLayer"), tray = $("tray"), live = $("live");
+  var cards = {};
+
+  function zoneOf(x) { return x < 1 / 3 ? "not" : (x < 2 / 3 ? "maybe" : "ai"); }
+  function announce(msg) { live.textContent = ""; setTimeout(function () { live.textContent = msg; }, 30); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  ITEMS.forEach(function (it) {
+    var el = document.createElement("div");
+    el.className = "card";
+    el.tabIndex = 0;
+    el.setAttribute("role", "button");
+    el.dataset.id = it.id;
+    el.innerHTML = '<span class="ico" aria-hidden="true">' + it.ico + '</span><span class="lbl">' + esc(it.label) + "</span>";
+    cards[it.id] = el;
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("keydown", onKey);
+  });
+
+  /* ---------------- layout ---------------- */
+  function boardDims() { return { W: layer.clientWidth, H: layer.clientHeight }; }
+  function cardDims() {
+    var cs = getComputedStyle(document.documentElement);
+    return { w: parseFloat(cs.getPropertyValue("--card-w")) || 104, h: parseFloat(cs.getPropertyValue("--card-h")) || 96 };
+  }
+  var TOP_PAD = 66; // keep cards below the zone labels + axis
+
+  function keyLayout() {
+    // grid each zone's cards in the answer-key view; returns {id:{left,top}} and needed height
+    var d = boardDims(), c = cardDims(), gap = 8, out = {}, need = 0;
+    var zw = d.W / 3;
+    ZONE_ORDER.forEach(function (z, zi) {
+      var list = ITEMS.filter(function (it) { return it.key === z; });
+      var cols = Math.max(1, Math.floor((zw - 12) / (c.w + gap)));
+      var rowsW = cols * c.w + (cols - 1) * gap;
+      var x0 = zi * zw + (zw - rowsW) / 2;
+      list.forEach(function (it, i) {
+        var col = i % cols, row = Math.floor(i / cols);
+        out[it.id] = { left: x0 + col * (c.w + gap), top: TOP_PAD + row * (c.h + gap) };
+        need = Math.max(need, TOP_PAD + (row + 1) * (c.h + gap) + 8);
+      });
+    });
+    return { pos: out, need: need };
+  }
+
+  function render() {
+    var locked = state.step === 3;
+    var showKey = locked && state.view === "key";
+    board.classList.toggle("locked", locked);
+
+    // board height for key view on narrow screens
+    board.style.height = "";
+    var kl = null;
+    if (showKey) {
+      kl = keyLayout();
+      if (kl.need > board.clientHeight) { board.style.height = kl.need + "px"; kl = keyLayout(); }
+    }
+
+    var d = boardDims(), c = cardDims(), placed = 0;
+    ITEMS.forEach(function (it) {
+      var el = cards[it.id], p = state.pos[it.id];
+      if (p) {
+        placed++;
+        if (el.parentNode !== layer) layer.appendChild(el);
+        var left, top;
+        if (showKey) { left = kl.pos[it.id].left; top = kl.pos[it.id].top; }
+        else {
+          left = clamp(p.x * d.W - c.w / 2, 2, d.W - c.w - 2);
+          top = clamp(p.y * d.H - c.h / 2, TOP_PAD, d.H - c.h - 4);
+        }
+        el.style.left = left + "px"; el.style.top = top + "px";
+      } else {
+        el.style.left = el.style.top = "";
+        if (el.parentNode !== tray) tray.appendChild(el);
+      }
+      // badges & notes
+      var b = el.querySelector(".badge"); if (b) b.remove();
+      if (locked && p) {
+        var match = zoneOf(p.x) === it.key;
+        b = document.createElement("span");
+        b.className = "badge " + (match ? "match" : "diff");
+        b.setAttribute("aria-hidden", "true");
+        b.textContent = match ? "✓" : "≠";
+        el.appendChild(b);
+      }
+      el.classList.toggle("has-note", !!(state.why[it.id] && state.why[it.id].trim()) && !locked);
+      var where = p ? ZONES[zoneOf(p.x)] : "not placed yet";
+      var label = it.label + ". " + (showKey ? "Answer key: " + ZONES[it.key] : "Your placement: " + where);
+      if (locked && p) label += zoneOf(p.x) === it.key ? ". Matches the answer key." : ". Answer key: " + ZONES[it.key] + ".";
+      el.setAttribute("aria-label", label);
+      el.setAttribute("aria-disabled", locked ? "true" : "false");
+    });
+
+    // counts & nav
+    var total = ITEMS.length;
+    $("count").textContent = placed + " of " + total + " placed";
+    $("trayWrap").hidden = state.step !== 1;
+    $("actions1").hidden = state.step !== 1;
+    $("toStep2").disabled = placed < total;
+    $("hint1").textContent = placed < total ? "Place all " + total + " cards to continue." : "";
+    $("head1").hidden = state.step !== 1;
+    $("head3").hidden = state.step !== 3;
+    $("boardSection").hidden = state.step === 2;
+    $("step2").hidden = state.step !== 2;
+    $("step3").hidden = state.step !== 3;
+    $("viewMine").setAttribute("aria-pressed", String(state.view !== "key"));
+    $("viewKey").setAttribute("aria-pressed", String(state.view === "key"));
+
+    document.querySelectorAll("#stepper button").forEach(function (btn) {
+      var s = +btn.dataset.step;
+      btn.disabled = s > state.maxStep;
+      if (s === state.step) btn.setAttribute("aria-current", "step"); else btn.removeAttribute("aria-current");
+    });
+  }
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  /* ---------------- drag & drop (mouse, touch, pen) ---------------- */
+  var drag = null;
+  function onPointerDown(e) {
+    if (state.step === 3 || e.button > 0) return;
+    var el = e.currentTarget, r = el.getBoundingClientRect();
+    drag = { el: el, id: el.dataset.id, sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, moved: false, w: r.width, h: r.height };
+    drag.pid = e.pointerId;
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+    e.preventDefault();
+  }
+  function onPointerMove(e) {
+    if (!drag || e.pointerId !== drag.pid) return;
+    e.preventDefault();
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      drag.el.classList.add("dragging");
+      document.body.appendChild(drag.el);
+    }
+    drag.el.style.left = (e.clientX - drag.ox) + "px";
+    drag.el.style.top = (e.clientY - drag.oy) + "px";
+    board.classList.toggle("drop-hover", overBoard(e.clientX, e.clientY));
+  }
+  function onPointerUp(e) {
+    if (!drag || e.pointerId !== drag.pid) return;
+    var el = drag.el;
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerUp);
+    board.classList.remove("drop-hover");
+    if (drag.moved) {
+      el.classList.remove("dragging");
+      var cx = e.clientX - drag.ox + drag.w / 2, cy = e.clientY - drag.oy + drag.h / 2;
+      if (overBoard(e.clientX, e.clientY)) {
+        var r = layer.getBoundingClientRect();
+        state.pos[drag.id] = { x: clamp((cx - r.left) / r.width, 0, 1), y: clamp((cy - r.top) / r.height, 0, 1) };
+        announce(byId[drag.id].label + " placed in " + ZONES[zoneOf(state.pos[drag.id].x)] + ".");
+      } else {
+        delete state.pos[drag.id];
+        announce(byId[drag.id].label + " returned to the deck.");
+      }
+      el.style.left = el.style.top = "";
+      save(); render();
+      el.focus({ preventScroll: true });
+    } else if (state.step === 2) {
+      var t = document.getElementById("why-" + drag.id); if (t) t.focus();
+    } else {
+      el.focus();
+    }
+    drag = null;
+  }
+  function overBoard(x, y) { var r = board.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }
+
+  /* ---------------- keyboard ---------------- */
+  var nextY = { not: 0, maybe: 0, ai: 0 };
+  function onKey(e) {
+    if (state.step === 3) return;
+    var id = e.currentTarget.dataset.id, p = state.pos[id], k = e.key, handled = true;
+    var centers = { "1": 1 / 6, "2": 0.5, "3": 5 / 6 };
+    if (centers[k] !== undefined) {
+      var z = zoneOf(centers[k]);
+      var n = nextY[z]++ % 12;
+      state.pos[id] = { x: centers[k] + ((n % 3) - 1) * 0.09, y: 0.3 + Math.floor(n / 3) * 0.19 };
+    } else if ((k === "ArrowLeft" || k === "ArrowRight") && p) {
+      p.x = clamp(p.x + (k === "ArrowLeft" ? -0.03 : 0.03), 0, 1);
+    } else if ((k === "ArrowUp" || k === "ArrowDown") && p) {
+      p.y = clamp(p.y + (k === "ArrowUp" ? -0.05 : 0.05), 0, 1);
+    } else if ((k === "Delete" || k === "Backspace") && p) {
+      delete state.pos[id];
+    } else handled = false;
+    if (!handled) return;
+    e.preventDefault();
+    save(); render();
+    cards[id].focus();
+    announce(byId[id].label + ": " + (state.pos[id] ? ZONES[zoneOf(state.pos[id].x)] : "returned to the deck") + ".");
+  }
+
+  /* ---------------- step 2: notes ---------------- */
+  function buildNotes() {
+    var html = "";
+    ZONE_ORDER.forEach(function (z) {
+      var list = ITEMS.filter(function (it) { return state.pos[it.id] && zoneOf(state.pos[it.id].x) === z; });
+      if (!list.length) return;
+      html += '<div class="group"><p class="group-title"><span class="dot ' + z + '"></span>You placed in: ' + ZONES[z] + " (" + list.length + ")</p>";
+      list.forEach(function (it) {
+        html += '<div class="note-row"><span class="ico" aria-hidden="true">' + it.ico + '</span><div>' +
+          '<label for="why-' + it.id + '">' + esc(it.label) + '</label>' +
+          '<textarea id="why-' + it.id + '" data-id="' + it.id + '" rows="2" placeholder="Optional: why did you put it here?">' + esc(state.why[it.id] || "") + "</textarea></div></div>";
+      });
+      html += "</div>";
+    });
+    $("notes").innerHTML = html;
+    $("defInput").value = state.def || "";
+  }
+  document.addEventListener("input", function (e) {
+    var t = e.target;
+    if (t.id === "defInput") state.def = t.value;
+    else if (t.id === "defRevised") state.defRevised = t.value;
+    else if (t.dataset && t.dataset.id && t.tagName === "TEXTAREA") state.why[t.dataset.id] = t.value;
+    else return;
+    save();
+  });
+
+  /* ---------------- step 3: results ---------------- */
+  function buildResults() {
+    var matches = ITEMS.filter(function (it) { return zoneOf(state.pos[it.id].x) === it.key; }).length;
+    $("score").innerHTML = '<span class="big">' + matches + "/" + ITEMS.length + "</span><p><strong>of your placements match the answer key.</strong> " +
+      "Differences aren’t necessarily wrong. Many of these technologies sit on a spectrum, and your reasoning matters more than the zone.</p>";
+
+    var sorted = ITEMS.slice().sort(function (a, b) {
+      var ma = zoneOf(state.pos[a.id].x) === a.key ? 1 : 0, mb = zoneOf(state.pos[b.id].x) === b.key ? 1 : 0;
+      return ma - mb || ZONE_ORDER.indexOf(a.key) - ZONE_ORDER.indexOf(b.key);
+    });
+    var html = "";
+    sorted.forEach(function (it) {
+      var mine = zoneOf(state.pos[it.id].x), match = mine === it.key, why = (state.why[it.id] || "").trim();
+      html += '<details class="exp"' + (match ? "" : " open") + "><summary>" +
+        '<span class="ico" aria-hidden="true">' + it.ico + "</span>" +
+        '<span><span class="name">' + esc(it.label) + '</span><span class="you">Answer: <strong>' + ZONES[it.key] + "</strong> &middot; You: " + ZONES[mine] + "</span></span>" +
+        "</summary><div class=\"body\">" +
+        '<p><span class="tag ' + (match ? "match" : "diff") + '">' + (match ? "Matches the key" : "Different zone") + "</span></p>" +
+        "<p>" + esc(it.exp) + "</p>" +
+        (why ? '<div class="mine"><b>Your reasoning:</b> ' + esc(why) + "</div>" : "") +
+        "</div></details>";
+    });
+    $("explanations").innerHTML = html;
+
+    $("revisitBody").innerHTML = state.def && state.def.trim()
+      ? "<p style=\"margin:0\">Your definition from Step 2:</p><blockquote>" + esc(state.def) + "</blockquote>"
+      : "<p>You didn’t write a definition in Step 2. Try one now.</p>";
+    $("defRevised").value = state.defRevised || "";
+  }
+
+  /* ---------------- navigation ---------------- */
+  function go(step) {
+    if (step > state.maxStep) return;
+    state.step = step;
+    if (step === 2) buildNotes();
+    if (step === 3) { state.view = state.view || "mine"; buildResults(); }
+    save(); render();
+    try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
+  }
+  $("stepper").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b && !b.disabled) go(+b.dataset.step); });
+  $("toStep2").addEventListener("click", function () { state.maxStep = Math.max(state.maxStep, 2); go(2); });
+  $("back1").addEventListener("click", function () { go(1); });
+  $("toStep3").addEventListener("click", function () { state.maxStep = 3; state.view = "mine"; go(3); });
+  $("back2").addEventListener("click", function () { go(2); });
+  $("viewMine").addEventListener("click", function () { setView("mine"); });
+  $("viewKey").addEventListener("click", function () { setView("key"); });
+  function setView(v) {
+    state.view = v; board.classList.add("animate"); save(); render();
+    setTimeout(function () { board.classList.remove("animate"); }, 650);
+    announce(v === "key" ? "Showing the answer key." : "Showing your sort.");
+  }
+  function restart() {
+    if (!window.confirmReset) { state = fresh(); save(); render(); go(1); }
+  }
+  $("restart").addEventListener("click", restart);
+  $("resetBtn").addEventListener("click", function () {
+    var b = $("resetBtn");
+    if (b.dataset.armed) { delete b.dataset.armed; b.textContent = "Start over"; restart(); return; }
+    b.dataset.armed = "1"; b.textContent = "Click again to clear everything";
+    setTimeout(function () { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = "Start over"; } }, 3000);
+  });
+
+  var rt; window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(render, 80); });
+
+  // initial
+  if (state.step === 2) buildNotes();
+  if (state.step === 3) buildResults();
+  render();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>
